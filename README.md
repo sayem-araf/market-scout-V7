@@ -1,105 +1,51 @@
-# MarketScout V7
+# MarketScout
 
-AI-Powered Business Feasibility Analyzer using Google Gemini AI.
+MarketScout turns a product keyword into a sourcing decision and two operational files.
 
-## Overview
+## Pipeline
 
-MarketScout performs comprehensive market research and feasibility analysis for business ideas using a multi-agent AI system.
-
-## Features
-
-- **Research Agent** - Gathers market data using Google Search
-- **Analyst Agent** - Performs PESTLE and SWOT analysis
-- **Visualizer Agent** - Creates radar charts with success probability
-
-## Installation
-
-```bash
-pip install google-genai matplotlib numpy pandas
-```
+1. **AI sourcing extraction**: Gemini 3.6 Flash uses Google Search grounding to return one structured supplier offer with wholesale price, MOQ, retail benchmark, shipping, duty, and evidence URLs.
+2. **Deterministic margin engine**: Python calculates VAT, landed cost, net retail price, gross profit, gross margin, breakeven units, and a `GO`/`NO-GO` decision against the target margin.
+3. **Artifact exporter**: writes `catalog_entry.csv` and `supplier_rfq.txt`.
 
 ## Setup
 
-Get your Gemini API key from [Google AI Studio](https://aistudio.google.com/apikey)
+Python 3.9+ is recommended. Live sourcing requires the Gemini SDK:
 
-Set as environment variable:
 ```bash
+pip install google-genai
 export GEMINI_API_KEY="your-api-key-here"
 ```
 
 ## Usage
 
-### Basic Analysis
+Run a live, search-grounded sourcing pass:
+
 ```bash
-python market_scout.py "start a coffee shop in Seattle"
+python market_scout.py "heavy-duty nitrile gloves" \
+  --region EU \
+  --output-dir outputs \
+  --vat-rate 0.20 \
+  --target-margin 0.60 \
+  --fixed-costs 500
 ```
 
-### With Custom Goal
+The API key can also be passed with `--api-key`. Use `--model` to select a different Gemini model.
+
+Run the local deterministic check without an API key:
+
 ```bash
-python market_scout.py "AI tutoring platform" --goal "Market sizing and competitive analysis"
+python market_scout.py "Nitras Medical nitrile gloves 200 pcs" \
+  --region EU \
+  --target-margin 0.60 \
+  --vat-rate 0.24 \
+  --dry-run \
+  --output-dir outputs
 ```
 
-### Save Outputs
-```bash
-python market_scout.py "electric scooter rental" --save-chart chart.png --save-report report.md
-```
+## Outputs
 
-### All Options
-```bash
-python market_scout.py "your business idea" \
-  --goal "Analysis objective" \
-  --save-chart output.png \
-  --save-report report.md \
-  --api-key "your-key" \
-  --model "gemini-2.0-flash"
-```
+- `catalog_entry.csv`: one clean inventory row with columns `sku_name`, `category`, `est_wholesale_eur`, `target_retail_eur`, `moq`, `margin_pct`, and `status`.
+- `supplier_rfq.txt`: ready-to-send Nordic supplier inquiry requesting samples, 500/2,000/10,000-unit pricing, and delivery lead times.
 
-## Command Options
-
-| Option | Description |
-|--------|-------------|
-| `topic` | Business idea to analyze (required) |
-| `--goal` | Analysis objective (default: "Comprehensive Feasibility Study") |
-| `--save-chart PATH` | Save radar chart to file |
-| `--save-report PATH` | Save analysis report to markdown file |
-| `--api-key` | Gemini API key (or use GEMINI_API_KEY env var) |
-| `--model` | Gemini model to use (default: gemini-2.0-flash) |
-
-## Output
-
-The tool generates:
-1. **Executive Summary** with success probability score
-2. **PESTLE Analysis** table (Political, Economic, Social, Technological, Legal, Environmental)
-3. **SWOT Analysis** table (Strengths, Weaknesses, Opportunities, Threats)
-4. **Financial Verdict** with Go/No-Go recommendation
-5. **Radar Chart** visualizing 5 key dimensions
-
-## Main Functions
-
-### `MarketScout.__init__(api_key, model)`
-Initialize the analyzer with API credentials.
-
-### `MarketScout.research(topic)`
-Gather comprehensive market data for the topic.
-
-### `MarketScout.analyze(raw_data, goal)`
-Perform strategic analysis with PESTLE and SWOT.
-
-### `MarketScout.visualize(analyst_output, save_path)`
-Create radar chart from analysis data.
-
-### `MarketScout.run_analysis(topic, goal, save_chart, save_report)`
-Run complete end-to-end analysis pipeline.
-
-## Requirements
-
-- Python 3.7+
-- google-genai
-- matplotlib
-- numpy
-- pandas
-
-## Version
-
-7.0 (March 2026)
-EOF
+Prices must be per sellable unit and all cost fields must use the same currency. VAT and target margin are decimal rates, so `0.20` means 20%.
