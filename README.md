@@ -29,7 +29,6 @@ python market_scout.py "heavy-duty nitrile gloves" \
   --target-margin 0.60 \
   --fixed-costs 500
 ```
-<img width="615" height="227" alt="01_Pipeline_Run_And_Margin_Gate" src="https://github.com/user-attachments/assets/62402e1f-ba05-479f-baab-1f73cdda8833" />
 
 The API key can also be passed with `--api-key`. Use `--model` to select a different Gemini model.
 
@@ -50,6 +49,12 @@ python market_scout.py "Nitras Medical nitrile gloves 200 pcs" \
 - `supplier_rfq.txt`: ready-to-send Nordic supplier inquiry requesting samples, 500/2,000/10,000-unit pricing, and delivery lead times.
 
 Prices must be per sellable unit and all cost fields must use the same currency. VAT and target margin are decimal rates, so `0.20` means 20%.
+
+
+
+<img width="615" height="227" alt="01_Pipeline_Run_And_Margin_Gate" src="https://github.com/user-attachments/assets/62402e1f-ba05-479f-baab-1f73cdda8833" />
+
+
 
 <img width="979" height="52" alt="02_Exported_Catalog_Entry" src="https://github.com/user-attachments/assets/06f13091-85d2-424b-84e2-879949f3b485" />
 
