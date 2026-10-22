@@ -1,2 +1,2 @@
-sku_name,category,est_wholesale_eur,target_retail_eur,moq,margin_pct,status
-Nitras Medical BIG BLUE WAVE Nitrile Disposable Gloves (200 pcs),Safety & PPE / Disposable Gloves,5.26,14.90,100,59.4,[NO-GO]
+sku_name,category,currency,est_wholesale,target_retail,moq,margin_pct,status
+Fictional industrial gloves — box of 200,Unclassified,EUR,5.26,14.9,100,47.97315436241611,NO-GO
