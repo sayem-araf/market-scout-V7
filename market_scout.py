@@ -1,21 +1,14 @@
 #!/usr/bin/env python3
-"""MarketScout: source a product, calculate its margin, and export sales files."""
-
+"""Supplier research and deterministic, scenario-based unit economics."""
 import argparse
 import csv
 import json
 import os
+import re
 from dataclasses import asdict, dataclass
-from math import floor
+from decimal import Decimal, ROUND_CEILING, ROUND_HALF_UP
 from pathlib import Path
-from typing import Any, Dict, List
-
-try:
-    from google import genai
-    from google.genai import types
-except ImportError:
-    genai = None
-    types = None
+from urllib.parse import urlsplit
 
 
 @dataclass
@@ -24,196 +17,153 @@ class SourcingRecord:
     product_title: str
     supplier_name: str
     supplier_url: str
-    wholesale_price: float
+    wholesale_price: float | None
     currency: str
-    moq: int
-    retail_benchmark: float
-    shipping_per_unit: float
-    duty_per_unit: float
-    source_urls: List[str]
+    moq: int | None
+    retail_benchmark: float | None
+    shipping_per_unit: float | None
+    duty_per_unit: float | None
+    source_urls: list[str]
     notes: str = ""
-    category: str = "Safety & PPE / Disposable Gloves"
+    category: str = "Unclassified"
 
 
-def extract_sourcing_data(product_keyword: str, api_key: str, model: str = "gemini-3.6-flash",
-                          region: str = "EU") -> SourcingRecord:
-    """Use Gemini search grounding to return one normalized supplier offer."""
-    if genai is None or types is None:
-        raise RuntimeError("google-genai is required for live sourcing")
-
-    client = genai.Client(api_key=api_key)
-    schema = {
-        "type": "OBJECT",
-        "properties": {
-            "product_title": {"type": "STRING"},
-            "supplier_name": {"type": "STRING"},
-            "supplier_url": {"type": "STRING"},
-            "wholesale_price": {"type": "NUMBER"},
-            "currency": {"type": "STRING"},
-            "moq": {"type": "INTEGER"},
-            "retail_benchmark": {"type": "NUMBER"},
-            "shipping_per_unit": {"type": "NUMBER"},
-            "duty_per_unit": {"type": "NUMBER"},
-            "source_urls": {"type": "ARRAY", "items": {"type": "STRING"}},
-            "notes": {"type": "STRING"},
-        },
-        "required": [
-            "product_title", "supplier_name", "supplier_url", "wholesale_price",
-            "currency", "moq", "retail_benchmark", "shipping_per_unit",
-            "duty_per_unit", "source_urls", "notes",
-        ],
-    }
-    prompt = f"""Find a viable wholesale supplier for: {product_keyword}
-
-Return exactly one offer in the requested JSON schema. Use search grounding.
-Prices must be per sellable unit in one currency. For the {region} region, use EUR.
-retail_benchmark is the current
-consumer selling price for a comparable unit, shipping_per_unit and duty_per_unit
-must be numeric estimates in the same currency. Use 0 only when the cost is truly
-not applicable, and explain uncertainty in notes. Include URLs used as evidence."""
-    chat = client.chats.create(
-        model=model,
-        config=types.GenerateContentConfig(
-            tools=[types.Tool(google_search=types.GoogleSearch())],
-            response_mime_type="application/json",
-            response_schema=schema,
-        ),
-    )
-    response = chat.send_message(prompt)
-    data = json.loads(response.text)
-    data["product_keyword"] = product_keyword
-    return SourcingRecord(**data)
+def number(value, name, minimum=0):
+    if isinstance(value, bool) or not isinstance(value, (int, float, Decimal)):
+        raise ValueError(f"{name} must be a number")
+    value = Decimal(str(value))
+    if not value.is_finite() or value < minimum or value > Decimal("1000000000000"):
+        raise ValueError(f"{name} must be finite and between {minimum} and 1000000000000")
+    return value
 
 
-def calculate_margin(sourcing: SourcingRecord, vat_rate: float = 0.20,
-                     target_margin: float = 0.60, fixed_costs: float = 0.0,
-                     freight_rate: float = 0.15) -> Dict[str, Any]:
-    """Calculate unit economics without asking an LLM to make arithmetic decisions."""
-    if sourcing.retail_benchmark <= 0:
-        raise ValueError("retail_benchmark must be greater than zero")
-    if any(value < 0 for value in (sourcing.wholesale_price, sourcing.shipping_per_unit, sourcing.duty_per_unit)):
-        raise ValueError("sourcing costs cannot be negative")
-
-    retail_price = float(sourcing.retail_benchmark)
-    vat_amount = retail_price * vat_rate
-    net_retail_price = retail_price - vat_amount
-    landed_cost = sourcing.wholesale_price * (1 + freight_rate)
-    gross_profit = retail_price - landed_cost
-    gross_margin = gross_profit / retail_price
-    breakeven_units = (fixed_costs / gross_profit) if gross_profit > 0 else None
-
-    return {
-        **asdict(sourcing),
-        "vat_rate": vat_rate,
-        "vat_amount": round(vat_amount, 2),
-        "net_retail_price": round(net_retail_price, 2),
-        "freight_rate": freight_rate,
-        "landed_cost": round(landed_cost, 2),
-        "gross_profit": round(gross_profit, 2),
-        "gross_margin": round(gross_margin, 4),
-        "gross_margin_percent": floor(gross_margin * 1000) / 10,
-        "fixed_costs": fixed_costs,
-        "breakeven_units": round(breakeven_units, 2) if breakeven_units is not None else None,
-        "target_margin": target_margin,
-        "decision": "GO" if gross_margin >= target_margin else "NO-GO",
-    }
+def safe_url(value):
+    if not isinstance(value, str) or len(value) > 2048:
+        return False
+    try:
+        parts = urlsplit(value)
+        return parts.scheme in ("http", "https") and bool(parts.hostname) and not parts.username and not parts.password
+    except ValueError:
+        return False
 
 
-def export_artifacts(result: Dict[str, Any], output_dir: Path) -> None:
-    """Write the clean inventory row and a ready-to-send supplier RFQ."""
-    output_dir.mkdir(parents=True, exist_ok=True)
-    catalog_row = {
-        "sku_name": result["product_title"],
-        "category": result["category"],
-        "est_wholesale_eur": f"{result['wholesale_price']:.2f}",
-        "target_retail_eur": f"{result['retail_benchmark']:.2f}",
-        "moq": result["moq"],
-        "margin_pct": result["gross_margin_percent"],
-        "status": f"[{result['decision']}]",
-    }
-    with (output_dir / "catalog_entry.csv").open("w", newline="", encoding="utf-8") as file:
-        writer = csv.DictWriter(file, fieldnames=catalog_row.keys())
-        writer.writeheader()
-        writer.writerow(catalog_row)
+def validate_record(record):
+    for field in ("product_keyword", "product_title", "supplier_name", "notes", "category"):
+        value = getattr(record, field)
+        if not isinstance(value, str) or len(value) > 6000:
+            raise ValueError(f"Invalid {field}")
+    if not re.fullmatch(r"[A-Z]{3}", record.currency):
+        raise ValueError("Currency must be a three-letter uppercase code")
+    if record.supplier_url and not safe_url(record.supplier_url):
+        raise ValueError("Invalid supplier URL")
+    if not isinstance(record.source_urls, list) or len(record.source_urls) > 30 or any(not safe_url(url) for url in record.source_urls):
+        raise ValueError("Invalid source URLs")
+    for field in ("wholesale_price", "retail_benchmark", "shipping_per_unit", "duty_per_unit"):
+        if getattr(record, field) is not None:
+            number(getattr(record, field), field)
+    if record.retail_benchmark is not None and record.retail_benchmark <= 0:
+        raise ValueError("Retail benchmark must be positive")
+    if record.moq is not None and (type(record.moq) is not int or not 1 <= record.moq <= 1000000000):
+        raise ValueError("MOQ must be a positive integer")
+    return record
 
-    sources = "\n".join(f"- {url}" for url in result["source_urls"])
-    rfq = f"""Subject: RFQ - {result['product_title']}
+
+def calculate_margin(sourcing, vat_rate=0.20, target_margin=0.60, fixed_costs=0.0, freight_rate=0.0):
+    """Gross retail includes scenario VAT; costs exclude recoverable VAT. No FX conversion."""
+    validate_record(sourcing)
+    vat = number(vat_rate, "VAT rate")
+    target = number(target_margin, "Target margin")
+    fixed = number(fixed_costs, "Fixed costs")
+    freight = number(freight_rate, "Supplemental freight rate")
+    if vat > 1 or target > 1 or freight > 1:
+        raise ValueError("Rates must be between 0 and 1")
+    missing = [name for name in ("wholesale_price", "retail_benchmark", "shipping_per_unit", "duty_per_unit", "moq") if getattr(sourcing, name) is None]
+    result = {**asdict(sourcing), "vat_rate": float(vat), "target_margin": float(target), "fixed_costs": float(fixed),
+              "freight_rate": float(freight), "missing_fields": missing, "decision": "INCOMPLETE",
+              **dict.fromkeys(("vat_amount", "net_retail_price", "landed_cost", "gross_profit", "gross_margin", "gross_margin_percent", "breakeven_units", "moq_cost"))}
+    if missing:
+        return result
+    wholesale = number(sourcing.wholesale_price, "Wholesale price")
+    gross = number(sourcing.retail_benchmark, "Retail price")
+    net = gross / (1 + vat)
+    landed = wholesale + number(sourcing.shipping_per_unit, "Shipping") + number(sourcing.duty_per_unit, "Duty") + wholesale * freight
+    profit = net - landed
+    margin = profit / net
+    money = lambda value: float(value.quantize(Decimal("0.01"), rounding=ROUND_HALF_UP))
+    result.update(vat_amount=money(gross-net), net_retail_price=money(net), landed_cost=money(landed), gross_profit=money(profit),
+                  gross_margin=float(margin), gross_margin_percent=float(margin*100),
+                  breakeven_units=int((fixed/profit).to_integral_value(rounding=ROUND_CEILING)) if profit > 0 else None,
+                  moq_cost=money(landed*sourcing.moq), decision="GO" if margin >= target else "NO-GO")
+    return result
+
+
+def csv_safe(value):
+    text = str(value) if value is not None else ""
+    return "'" + text if text.lstrip().startswith(("=", "+", "-", "@")) else text
+
+
+def artifacts(result):
+    import io
+    output = io.StringIO(newline="")
+    fields = ["sku_name", "category", "currency", "est_wholesale", "target_retail", "moq", "margin_pct", "status"]
+    writer = csv.writer(output, lineterminator="\n")
+    writer.writerow(fields)
+    writer.writerow([csv_safe(result[key]) for key in ("product_title", "category", "currency", "wholesale_price", "retail_benchmark", "moq", "gross_margin_percent", "decision")])
+    rfq = f"""DRAFT ONLY — review before sending. Nothing has been sent.
+Subject: RFQ - {result['product_title']}
 
 Hello {result['supplier_name']},
 
-Please provide your best quotation for {result['product_title']} for delivery to the Nordics.
+Please confirm the specification, sellable unit / pack size and current price for {result['product_title']}.
+Please provide MOQ, sample availability, tier pricing, delivery terms, destination-specific shipping,
+duties, lead time, certifications, payment terms and quotation validity.
+Please identify whether quoted prices include tax, and the currency ({result['currency']}).
 
-Requested details:
-- Product specification and available variants
-- Sample units for evaluation before the first commercial order
-- Tiered unit pricing for 500, 2,000, and 10,000 units
-- Minimum order quantity and production lead time
-- Delivery lead times and shipping cost to the Nordics
-- Packaging, certifications, samples, and payment terms
-
-Our initial market benchmark is {result['retail_benchmark']:.2f} {result['currency']} per unit.
-Please confirm that the quotation is current and include the quote validity period.
-
-Regards,
-MarketScout Procurement
-
-Research references:
-{sources}
-"""
-    (output_dir / "supplier_rfq.txt").write_text(rfq, encoding="utf-8")
+Unresolved input fields: {', '.join(result['missing_fields']) or 'None; source evidence still requires human verification'}.
+Research references (not verified quotations):
+""" + "\n".join(result["source_urls"])
+    return {"catalog_entry.csv": output.getvalue(), "supplier_rfq.txt": rfq,
+            "research.json": json.dumps(result, indent=2, allow_nan=False)}
 
 
-def sample_record(keyword: str, region: str) -> SourcingRecord:
-    """Provide deterministic input for local pipeline checks and demos."""
-    if region.upper() == "EU":
-        return SourcingRecord(keyword, "Nitras Medical BIG BLUE WAVE Nitrile Disposable Gloves (200 pcs)",
-                              "Demo EU PPE Supplier", "https://example.com/supplier",
-                              5.26, "EUR", 100, 14.90, 0.0, 0.0,
-                              ["https://example.com/source"], "Demo data; replace with a live grounded result.")
-    return SourcingRecord(keyword, keyword.title(), "Demo Supplier", "https://example.com/supplier",
-                          2.00, "USD", 100, 10.00, 0.0, 0.0,
-                          ["https://example.com/source"], "Demo data; replace with a live grounded result.")
+def export_artifacts(result, output_dir):
+    output_dir = Path(output_dir)
+    output_dir.mkdir(parents=True, exist_ok=True)
+    for name, content in artifacts(result).items():
+        (output_dir / name).write_text(content, encoding="utf-8")
 
 
-def main() -> None:
-    parser = argparse.ArgumentParser(description="Source a product and export margin-ready commerce artifacts.")
-    parser.add_argument("product_keyword", help="Product to source, such as 'heavy-duty nitrile gloves'")
-    parser.add_argument("--region", default="EU", help="Sourcing and delivery region (default: EU)")
-    parser.add_argument("--output-dir", type=Path, default=Path("."), help="Directory for the two output files")
-    parser.add_argument("--vat-rate", type=float, default=0.20, help="VAT rate as a decimal (default: 0.20)")
-    parser.add_argument("--target-margin", type=float, default=0.60, help="Required gross margin as a decimal")
-    parser.add_argument("--fixed-costs", type=float, default=0.0, help="Fixed costs used for breakeven units")
-    parser.add_argument("--api-key", help="Gemini API key; otherwise use GEMINI_API_KEY")
-    parser.add_argument("--model", default="gemini-3.6-flash", help="Gemini model")
-    parser.add_argument("--dry-run", action="store_true", help="Use deterministic sample sourcing data")
+def sample_record(keyword, region="EU"):
+    return SourcingRecord(keyword, "Fictional industrial gloves — box of 200", "Fictional supplier", "https://example.com/supplier",
+                          5.26, "EUR" if region.upper() == "EU" else "USD", 100, 14.90, 1.20, 0.0,
+                          ["https://example.com/fictional-offer"], "Invented demonstration values. Not a supplier quote.")
+
+
+def extract_sourcing_data(product_keyword, api_key, model="gemini-3.6-flash", region="EU"):
+    from scout_agent import GroundedResearch
+    return GroundedResearch(api_key, model).research(product_keyword, region, "Find one offer; record unknown values as null.")[0]
+
+
+def main():
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument("product_keyword")
+    parser.add_argument("--region", default="EU")
+    parser.add_argument("--output-dir", type=Path, default=Path("outputs"))
+    parser.add_argument("--vat-rate", type=float, default=.20)
+    parser.add_argument("--target-margin", type=float, default=.60)
+    parser.add_argument("--fixed-costs", type=float, default=0)
+    parser.add_argument("--api-key")
+    parser.add_argument("--model", default="gemini-3.6-flash")
+    parser.add_argument("--dry-run", action="store_true")
     args = parser.parse_args()
-
-    api_key = args.api_key or os.environ.get("GEMINI_API_KEY")
-    print("[Stage 1] Extracting supplier data with Gemini search grounding..." if not args.dry_run
-          else "[Stage 1] Loading deterministic demo sourcing data...")
-    if args.dry_run:
-        sourcing = sample_record(args.product_keyword, args.region)
-    elif not api_key:
-        parser.error("a Gemini API key is required unless --dry-run is used")
-    else:
-        sourcing = extract_sourcing_data(args.product_keyword, api_key, args.model, args.region)
-
-    print("[Stage 2] Calculating deterministic margin...")
-    freight_rate = 0.15 if args.region.upper() == "EU" else 0.0
-    result = calculate_margin(sourcing, args.vat_rate, args.target_margin, args.fixed_costs, freight_rate)
-    print("[Stage 3] Exporting catalog entry and supplier RFQ...")
+    key = args.api_key or os.getenv("GEMINI_API_KEY")
+    if not args.dry_run and not key:
+        parser.error("Set GEMINI_API_KEY or use --dry-run")
+    record = sample_record(args.product_keyword, args.region) if args.dry_run else extract_sourcing_data(args.product_keyword, key, args.model, args.region)
+    result = calculate_margin(record, args.vat_rate, args.target_margin, args.fixed_costs)
     export_artifacts(result, args.output_dir)
-    currency = "€" if args.region.upper() == "EU" else result["currency"]
-    verdict = f"[{result['decision']}]"
-    reason = "Exceeds" if result["decision"] == "GO" else "Falls below"
-    print(f"Product: {result['product_title']} ({args.region.upper()})")
-    print(f"Benchmark Retail Price: {currency}{result['retail_benchmark']:.2f} / box")
-    print(f"Estimated Wholesale Cost: {currency}{result['wholesale_price']:.2f} / box")
-    print(f"Estimated Landed Cost (+{result['freight_rate']:.0%} freight/handling): {currency}{result['landed_cost']:.2f} / box")
-    print(f"Net Margin: {currency}{result['gross_profit']:.2f} ({result['gross_margin_percent']:.1f}%)")
-    print(f"Verdict: {verdict} - {reason} {args.target_margin:.0%} target margin.")
-    print(f"Wrote {args.output_dir / 'catalog_entry.csv'}")
-    print(f"Wrote {args.output_dir / 'supplier_rfq.txt'}")
+    print(json.dumps(result, indent=2, allow_nan=False))
+    print(f"Draft artifacts written to {args.output_dir}")
 
 
 if __name__ == "__main__":

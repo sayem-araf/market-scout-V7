@@ -1,0 +1,31 @@
+{
+  "product_keyword": "gloves",
+  "product_title": "Fictional industrial gloves \u2014 box of 200",
+  "supplier_name": "Fictional supplier",
+  "supplier_url": "https://example.com/supplier",
+  "wholesale_price": 5.26,
+  "currency": "EUR",
+  "moq": 100,
+  "retail_benchmark": 14.9,
+  "shipping_per_unit": 1.2,
+  "duty_per_unit": 0.0,
+  "source_urls": [
+    "https://example.com/fictional-offer"
+  ],
+  "notes": "Invented demonstration values. Not a supplier quote.",
+  "category": "Unclassified",
+  "vat_rate": 0.2,
+  "target_margin": 0.6,
+  "fixed_costs": 500.0,
+  "freight_rate": 0.0,
+  "missing_fields": [],
+  "decision": "NO-GO",
+  "vat_amount": 2.48,
+  "net_retail_price": 12.42,
+  "landed_cost": 6.46,
+  "gross_profit": 5.96,
+  "gross_margin": 0.4797315436241611,
+  "gross_margin_percent": 47.97315436241611,
+  "breakeven_units": 84,
+  "moq_cost": 646.0
+}
