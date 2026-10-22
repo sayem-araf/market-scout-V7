@@ -1,0 +1,42 @@
+[
+  {
+    "po_id": "PO-001",
+    "sku": "SKU-002",
+    "ordered": 200,
+    "received": 0,
+    "due_date": "2026-10-03",
+    "status": "CONFIRMED"
+  },
+  {
+    "po_id": "PO-002",
+    "sku": "SKU-003",
+    "ordered": 100,
+    "received": 40,
+    "due_date": "2026-09-25",
+    "status": "CONFIRMED"
+  },
+  {
+    "po_id": "PO-003",
+    "sku": "SKU-011",
+    "ordered": 100,
+    "received": 100,
+    "due_date": "2026-09-29",
+    "status": "CLOSED"
+  },
+  {
+    "po_id": "PO-004",
+    "sku": "SKU-009",
+    "ordered": 500,
+    "received": 0,
+    "due_date": "2026-10-02",
+    "status": "CANCELLED"
+  },
+  {
+    "po_id": "PO-005",
+    "sku": "SKU-015",
+    "ordered": 80,
+    "received": 0,
+    "due_date": "2026-11-20",
+    "status": "CONFIRMED"
+  }
+]

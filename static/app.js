@@ -37,4 +37,13 @@ async function run(demo) {
  finally{$('demo').disabled=false;await config();}
 }
 async function config(){try{const c=await (await fetch('/api/config')).json();$('live').disabled=!c.live_available;$('configuration').textContent=c.live_available?'Live mode configured · '+c.model:'Offline demo is ready. For live research, set GEMINI_API_KEY in your terminal before starting the server.';}catch{$('configuration').textContent='Unable to reach the local server.';}}
+const handoff = new URLSearchParams(window.location.search);
+if (handoff.has('product')) {
+  $('product').value = handoff.get('product').slice(0, 300);
+  for (const [parameter, id] of [['vat','vat'],['margin','margin']]) {
+    const value = Number(handoff.get(parameter));
+    if (handoff.has(parameter) && Number.isFinite(value) && value >= 0 && value <= 1) $(id).value = String(value*100);
+  }
+  $('status').textContent = 'Product transferred from inventory review. Choose live research or the separate fictional example; no research has started.';
+}
 $('request').addEventListener('submit',e=>{e.preventDefault();run(false);});$('demo').addEventListener('click',()=>run(true));config();

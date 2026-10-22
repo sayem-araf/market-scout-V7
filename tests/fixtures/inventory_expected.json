@@ -1,0 +1,46 @@
+{
+  "SKU-001": {
+    "status": "REORDER",
+    "suggested_quantity": 310,
+    "daily_sales": 10,
+    "selected_quote_id": "Q-001-A"
+  },
+  "SKU-002": {
+    "status": "INCOMING_COVERED",
+    "suggested_quantity": 0,
+    "daily_sales": 5,
+    "selected_quote_id": null
+  },
+  "SKU-003": {
+    "status": "REORDER",
+    "suggested_quantity": 100,
+    "overdue_quantity": 60,
+    "selected_quote_id": "Q-003-A"
+  },
+  "SKU-004": {
+    "status": "NO_RECENT_SALES",
+    "suggested_quantity": 0,
+    "selected_quote_id": null
+  },
+  "SKU-005": {
+    "status": "REORDER",
+    "suggested_quantity": 50,
+    "selected_quote_id": null
+  },
+  "SKU-006": {
+    "status": "REORDER",
+    "selected_quote_id": null
+  },
+  "SKU-007": {
+    "status": "REORDER",
+    "selected_quote_id": null
+  },
+  "SKU-008": {
+    "status": "REORDER",
+    "selected_quote_id": "Q-008-B"
+  },
+  "SKU-009": {
+    "status": "REORDER",
+    "selected_quote_id": "Q-009-B"
+  }
+}

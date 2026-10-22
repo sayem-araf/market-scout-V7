@@ -47,6 +47,25 @@ class HTTPTests(unittest.TestCase):
         self.assertIn('attachment',headers['Content-Disposition'])
         self.assertIn(b'NO-GO',body)
 
+    def test_inventory_review_and_draft_downloads(self):
+        status,_,body=self.request('/api/inventory')
+        self.assertEqual(status,200)
+        report=json.loads(body)
+        self.assertEqual(report['summary']['products'],20)
+        self.assertEqual(report['summary']['reorder'],7)
+        self.assertEqual(report['connections']['n8n'],'Not connected')
+        status,_,body=self.request('/api/inventory/review.csv')
+        self.assertEqual(status,200)
+        self.assertEqual(len(body.decode().splitlines()),21)
+        status,_,body=self.request('/api/inventory/inquiry/SKU-001')
+        self.assertEqual(status,200)
+        self.assertIn(b'310',body)
+        self.assertIn(b'No message has been sent',body)
+        self.assertEqual(self.request('/api/inventory/inquiry/SKU-002')[0],400)
+        self.assertEqual(self.request('/tests/fixtures/inventory_expected.json')[0],404)
+        self.assertEqual(self.request('/data/demo/sales.json')[0],404)
+        self.assertEqual(self.request('/inventory')[0],200)
+
     def test_host_origin_and_path_boundaries(self):
         self.assertEqual(self.request('/api/config',headers={'Host':'evil.example'})[0],403)
         self.assertEqual(self.request('/api/config',headers={'Origin':'https://evil.example'})[0],403)

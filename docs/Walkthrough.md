@@ -8,3 +8,11 @@
 6. Download the inquiry draft or full evidence/trace. Close with what is verified: the local workflow, calculations and mocked live adapter; real-key supplier research is the next validation step.
 
 Do not describe this recording as a live AI investigation unless you actually run live mode and verify the sources.
+
+## Inventory extension (separate 60-second clip)
+
+1. Open `/inventory` and identify the fixed synthetic snapshot, 20 products and 7 replenishment candidates. State that this screen runs Python rules, not multiple live AI agents.
+2. Filter to incoming-covered stock: packing tape needs no duplicate order because 200 confirmed units arrive before the projected gap.
+3. Select parcel mailers. Show that the €2 wholesale offer lands at €7 after shipping, while the €3 offer lands at €4; the lower total-cost option is proposed for human review. These are fictional quotations.
+4. Select cleaning wipes: shipping is unknown, so the offer remains ineligible. Show the inquiry draft and purchasing brief. Nothing has been sent.
+5. Explain the next integration: n8n and model-based agents will use these tested rules and handoffs once credentials and an authenticated adapter are configured. Do not claim those connections are active.

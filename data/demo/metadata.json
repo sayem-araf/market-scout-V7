@@ -1,0 +1,18 @@
+{
+  "dataset_id": "marketscout-distributor-v1",
+  "synthetic": true,
+  "seed": 221026,
+  "as_of": "2026-10-01",
+  "history_start": "2026-04-01",
+  "history_end": "2026-09-30",
+  "demand_window_days": 30,
+  "description": "Invented operational snapshot and independent history; not a ledger-reconciled stock movement simulation.",
+  "units": "All stock, sales and order quantities use each product's exact sellable unit.",
+  "limitations": [
+    "Constant last-30-day sales baseline; not a trained or validated demand forecast.",
+    "Confirmed receipts assumed available at start of due date; overdue or cancelled quantities are not available stock.",
+    "Received purchase-order quantities are already included in the inventory snapshot.",
+    "Reservations are deducted once. Historical returns are reported separately, not netted from forward demand.",
+    "No supplier verification, emails, tax determination or real business outcomes."
+  ]
+}

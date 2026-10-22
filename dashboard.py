@@ -11,6 +11,7 @@ from pathlib import Path
 from urllib.parse import urlsplit
 from market_scout import artifacts
 from scout_agent import run_investigation, MODEL
+from inventory_review import build_review, draft_inquiry, review_csv
 
 ROOT = Path(__file__).resolve().parent
 JOBS = {}
@@ -54,10 +55,28 @@ class Handler(BaseHTTPRequestHandler):
         if not self.trusted():
             return self.send(403, {"error": "Local origin required"})
         path = urlsplit(self.path).path
-        files = {"/": ("index.html", "text/html; charset=utf-8"), "/app.js": ("app.js", "text/javascript; charset=utf-8"), "/style.css": ("style.css", "text/css; charset=utf-8")}
+        files = {"/inventory": ("inventory.html", "text/html; charset=utf-8"), "/inventory.js": ("inventory.js", "text/javascript; charset=utf-8"), "/inventory.css": ("inventory.css", "text/css; charset=utf-8"), "/": ("index.html", "text/html; charset=utf-8"), "/app.js": ("app.js", "text/javascript; charset=utf-8"), "/style.css": ("style.css", "text/css; charset=utf-8")}
         if path in files:
             name, mime = files[path]
             return self.send(200, (ROOT / "static" / name).read_text(), mime)
+        if path in ("/api/inventory", "/api/inventory/review.csv", "/api/inventory/review.json") or path.startswith("/api/inventory/inquiry/"):
+            try:
+                report = build_review()
+                if path == "/api/inventory":
+                    return self.send(200, report)
+                if path == "/api/inventory/review.csv":
+                    return self.send(200, review_csv(report), "text/csv; charset=utf-8", "inventory_review.csv")
+                if path == "/api/inventory/review.json":
+                    return self.send(200, report, download="inventory_review.json")
+                sku = path.removeprefix("/api/inventory/inquiry/")
+                item = next((row for row in report["items"] if row["sku"] == sku), None)
+                if item is None:
+                    return self.send(404, {"error": "Product not found"})
+                if item["suggested_quantity"] <= 0:
+                    return self.send(400, {"error": "No replenishment inquiry needed for this product"})
+                return self.send(200, draft_inquiry(item), "text/plain; charset=utf-8", f"inquiry_{sku}.txt")
+            except (ValueError, KeyError, TypeError):
+                return self.send(422, {"error": "Inventory inputs failed validation. Check the snapshot, units, quantities and complete daily history."})
         if path == "/api/config":
             return self.send(200, {"live_available": bool(os.getenv("GEMINI_API_KEY")), "model": os.getenv("MARKETSCOUT_MODEL", MODEL)})
         pieces = path.strip("/").split("/")

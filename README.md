@@ -1,10 +1,17 @@
 # MarketScout
 
-A supplier-research workbench that turns a product question into an inspectable candidate offer, evidence review, margin scenario and supplier inquiry draft.
+An inventory and supplier-research workbench: identify a replenishment need, compare quotations and inspect the evidence and financial assumptions before deciding.
 
-**Status:** the dashboard and offline workflow run locally. Gemini search and tool-calling adapters are implemented and tested with mocked responses. **A real-key live run has not yet been verified.** The offline demo uses fictional data and scripted tool calls, not a live AI agent.
+**Status:** inventory review and quotation comparison run locally using deterministic rules and labelled synthetic data. No AI agents, email or n8n connections run in that review. The supplier-research dashboard and offline workflow also run locally. Gemini search and tool-calling adapters are implemented and tested with mocked responses. **A real-key live run has not yet been verified.** The offline demo uses fictional data and scripted tool calls, not a live AI agent.
 
-![MarketScout dashboard showing the fictional supplier scenario](docs/dashboard.png)
+![Inventory review with synthetic stock, incoming-order and quotation priorities](docs/inventory-dashboard.png)
+
+<details>
+<summary>Supplier research screen</summary>
+
+![MarketScout supplier research dashboard](docs/dashboard.png)
+
+</details>
 
 ## Try it
 
@@ -14,7 +21,9 @@ Python **3.10+**. The offline demo needs only Python's standard library:
 python3 dashboard.py
 ```
 
-Open **http://127.0.0.1:8766/** and select **Explore fictional demo**. The example first has missing shipping, identifies that gap, then supplies a fictional shipping figure and recalculates. Change the scenario assumptions and rerun to compare outcomes.
+Open **http://127.0.0.1:8766/inventory** for stock and quotation review. The synthetic catalog contains **20 products, six months of sales history, 5 incoming orders and 12 quotations**. Select a product to inspect calculations, quote constraints and a draft inquiry; download the review as CSV or JSON.
+
+For the separate supplier investigation, open **http://127.0.0.1:8766/** and select **Explore fictional demo**. The example first has missing shipping, identifies that gap, then supplies a fictional shipping figure and recalculates. Change the scenario assumptions and rerun to compare outcomes.
 
 For live research, install the SDK in a virtual environment:
 
@@ -27,6 +36,24 @@ python dashboard.py
 ```
 
 The key stays on the server; do not put it in browser fields, committed files or screenshots. Live requests send your product query, destination, scenario assumptions and candidate research to Google's API and may incur charges. `MARKETSCOUT_MODEL` overrides the default `gemini-3.6-flash`; the chosen model must support search grounding, structured output and function calling. Each provider request has a 45-second timeout and one attempt.
+
+## Inventory → quotation → decision
+
+The inventory screen identifies 7 replenishment candidates, 1 item covered by an incoming delivery and 3 items with no eligible quotation. It demonstrates overdue and partial deliveries, reservations, returns, missing shipping, incompatible packs, expired or foreign-currency quotes, large MOQs and delivery timing. Recommendations are rule-based and do not approve purchases.
+
+The **Open supplier research** button transfers a product and scenario assumptions to the existing research form; it does not trigger an API call. The inquiry download is a template, not an email agent. Quotation records are structured fictional inputs, not parsed emails.
+
+Source definitions and calculation assumptions are documented beside the [synthetic dataset](data/demo/README.md). Rebuild it with:
+
+```bash
+python3 scripts/generate_demo.py
+```
+
+## Proposed multi-agent extension
+
+The intended roles are an inventory investigator, a supplier-research/correspondence agent and a decision adviser, coordinated by n8n. They would call the tested Python tools, pass structured purchasing briefs, request missing information and pause for human approval before email sending or purchasing. **These three cooperating agents and the n8n/email integrations are not implemented.**
+
+The existing local API has same-origin/host restrictions and no remote authentication. Connecting n8n requires a reviewed authenticated integration endpoint or local adapter; the current server must not simply be exposed to the internet. Live supplier research also still needs a real-key validation run.
 
 ## How the agent works
 
@@ -83,7 +110,7 @@ It writes `catalog_entry.csv`, `supplier_rfq.txt` and `research.json`. Without `
 python -m unittest discover -s tests -v
 ```
 
-With the pinned SDK installed, **14 checks** cover VAT, shipping, missing fields, exact-threshold decisions, loss-making offers, break-even rounding, CSV safety, tool budgets, mocked live SDK responses, local API validation and downloads. The two SDK tests skip when the optional dependency is absent. Tests make no real supplier searches or paid API requests.
+With the pinned SDK installed, **25 checks** cover VAT, shipping, missing fields, exact-threshold decisions, loss-making offers, break-even rounding, CSV safety, tool budgets, mocked live SDK responses, local API validation and downloads, reproducible data generation, inventory timing/partial receipts, quote constraints and independent expected decisions. The two SDK tests skip when the optional dependency is absent. Tests make no real supplier searches or paid API requests.
 
 This is a **local, single-user prototype**, bound to `127.0.0.1`, with same-origin checks and a single active investigation. It is not ready for public hosting. Runs are held in memory (up to 20), disappear on restart, and can be downloaded for your records. Evidence is model-reported and may be wrong; prompt-injection instructions are rejected by policy, but this is not a proof of immunity. There are no live procurement/ERP integrations, automated communications or tax-compliance guarantees.
 
@@ -92,7 +119,10 @@ This is a **local, single-user prototype**, bound to `127.0.0.1`, with same-orig
 | `market_scout.py` | Validation, deterministic economics, draft exports and original CLI |
 | `scout_agent.py` | Grounded research adapter, bounded tool executor and agent loop |
 | `dashboard.py` | Local server, validation, in-memory runs and downloads |
+| `inventory_review.py` | Deterministic inventory rules, quote comparison and purchasing briefs |
+| `data/demo/` | Six whitelisted fictional input files and their definitions |
+| `scripts/generate_demo.py` | Reproducible dataset generator; no external data or API calls |
 | `static/` | Browser interface; no API keys or model calls |
 | `tests/` | Offline calculation, agent and HTTP checks |
 
-The next validation step is one real-key run against a product with publicly available wholesale, delivery and retail evidence. Inspect every source before presenting it as a verified sourcing result. Live evidence should precede any further feature expansion.
+The next validation step is one real-key run against a product with publicly available wholesale, delivery and retail evidence. Inspect every source before presenting it as a verified sourcing result. Before connecting n8n or email, validate a real-key research run and review the integration access controls.

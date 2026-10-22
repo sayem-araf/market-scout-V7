@@ -1,0 +1,122 @@
+[
+  {
+    "sku": "SKU-001",
+    "on_hand": 50,
+    "reserved": 10,
+    "snapshot_date": "2026-10-01"
+  },
+  {
+    "sku": "SKU-002",
+    "on_hand": 20,
+    "reserved": 0,
+    "snapshot_date": "2026-10-01"
+  },
+  {
+    "sku": "SKU-003",
+    "on_hand": 12,
+    "reserved": 0,
+    "snapshot_date": "2026-10-01"
+  },
+  {
+    "sku": "SKU-004",
+    "on_hand": 500,
+    "reserved": 0,
+    "snapshot_date": "2026-10-01"
+  },
+  {
+    "sku": "SKU-005",
+    "on_hand": 10,
+    "reserved": 0,
+    "snapshot_date": "2026-10-01"
+  },
+  {
+    "sku": "SKU-006",
+    "on_hand": 20,
+    "reserved": 0,
+    "snapshot_date": "2026-10-01"
+  },
+  {
+    "sku": "SKU-007",
+    "on_hand": 24,
+    "reserved": 0,
+    "snapshot_date": "2026-10-01"
+  },
+  {
+    "sku": "SKU-008",
+    "on_hand": 90,
+    "reserved": 0,
+    "snapshot_date": "2026-10-01"
+  },
+  {
+    "sku": "SKU-009",
+    "on_hand": 20,
+    "reserved": 0,
+    "snapshot_date": "2026-10-01"
+  },
+  {
+    "sku": "SKU-010",
+    "on_hand": 200,
+    "reserved": 0,
+    "snapshot_date": "2026-10-01"
+  },
+  {
+    "sku": "SKU-011",
+    "on_hand": 180,
+    "reserved": 0,
+    "snapshot_date": "2026-10-01"
+  },
+  {
+    "sku": "SKU-012",
+    "on_hand": 240,
+    "reserved": 0,
+    "snapshot_date": "2026-10-01"
+  },
+  {
+    "sku": "SKU-013",
+    "on_hand": 140,
+    "reserved": 0,
+    "snapshot_date": "2026-10-01"
+  },
+  {
+    "sku": "SKU-014",
+    "on_hand": 300,
+    "reserved": 0,
+    "snapshot_date": "2026-10-01"
+  },
+  {
+    "sku": "SKU-015",
+    "on_hand": 150,
+    "reserved": 0,
+    "snapshot_date": "2026-10-01"
+  },
+  {
+    "sku": "SKU-016",
+    "on_hand": 180,
+    "reserved": 0,
+    "snapshot_date": "2026-10-01"
+  },
+  {
+    "sku": "SKU-017",
+    "on_hand": 80,
+    "reserved": 0,
+    "snapshot_date": "2026-10-01"
+  },
+  {
+    "sku": "SKU-018",
+    "on_hand": 150,
+    "reserved": 0,
+    "snapshot_date": "2026-10-01"
+  },
+  {
+    "sku": "SKU-019",
+    "on_hand": 100,
+    "reserved": 0,
+    "snapshot_date": "2026-10-01"
+  },
+  {
+    "sku": "SKU-020",
+    "on_hand": 150,
+    "reserved": 0,
+    "snapshot_date": "2026-10-01"
+  }
+]

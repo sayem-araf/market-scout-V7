@@ -1,0 +1,59 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>MarketScout · Inventory review</title>
+  <link rel="stylesheet" href="/style.css">
+  <link rel="stylesheet" href="/inventory.css">
+  <script defer src="/inventory.js"></script>
+</head>
+<body>
+<main>
+  <header>
+    <a class="brand" href="/">Market<span>Scout</span><span class="dot"></span></a>
+    <nav aria-label="Workbench"><a href="/inventory" aria-current="page">Inventory review</a><a href="/">Supplier research</a></nav>
+  </header>
+  <section class="inventory-intro">
+    <div class="eyebrow">THE NEXT PURCHASING DECISION</div>
+    <h1>See the gap. Compare the options.</h1>
+    <p>Review inventory needs, inspect incoming deliveries and compare quotations before committing to an order.</p>
+    <div id="dataset-label" class="notice">Loading the synthetic distributor scenario…</div>
+  </section>
+  <div id="load-error" role="alert" hidden></div>
+  <div id="inventory-app" hidden>
+    <section id="inventory-metrics" class="metrics" aria-label="Whole-catalog summary"></section>
+    <p class="hint">Summary counts cover the whole catalog. The table below can be filtered. All review calculations run in Python; no AI, email or n8n execution occurs here.</p>
+    <div class="workflow" aria-label="Implemented review stages">
+      <div><span>01 · INVENTORY RULES</span><strong>Identify the purchasing need</strong><p>Stock + sales + confirmed deliveries</p></div>
+      <div><span>02 · QUOTATION RULES</span><strong>Check comparable offers</strong><p>Pack size + landed cost + timing</p></div>
+      <div><span>03 · HUMAN DECISION</span><strong>Review the proposal</strong><p>Evidence + constraints + inquiry draft</p></div>
+    </div>
+    <section class="panel catalog-panel">
+      <div class="panel-heading"><h2>Inventory priorities</h2><span id="row-count" class="tag"></span></div>
+      <div class="inventory-filters">
+        <div><label for="inventory-filter">Show</label><select id="inventory-filter"><option value="action">Needs action</option><option value="all">All products</option><option value="INCOMING_COVERED">Incoming delivery covers need</option><option value="NO_RECENT_SALES">No recent sales</option><option value="SUFFICIENT">Sufficient stock</option></select></div>
+        <div><label for="inventory-search">Find a product</label><input id="inventory-search" type="search" placeholder="Name or SKU"></div>
+        <a class="download-link" href="/api/inventory/review.csv" download>Download review CSV ↗</a>
+      </div>
+      <div class="table-scroll inventory-table"><table><thead><tr><th>Product</th><th>Available</th><th>Sales / day</th><th>Incoming*</th><th>Proposed qty</th><th>Review</th></tr></thead><tbody id="inventory-rows"></tbody></table></div>
+      <p class="hint">*Outstanding confirmed receipts due within the product’s lead-time horizon. Overdue, cancelled and already received quantities are excluded.</p>
+    </section>
+    <section id="product-detail" class="panel" aria-live="polite">
+      <div class="panel-heading"><div><div id="detail-sku" class="eyebrow"></div><h2 id="detail-name"></h2></div><span id="detail-status" class="decision"></span></div>
+      <p id="detail-reason" class="reason"></p>
+      <div id="detail-numbers" class="detail-numbers"></div>
+      <details class="calculation-notes"><summary>How this requirement is calculated</summary><div id="detail-calculation"></div></details>
+      <div class="section-heading"><h3>Quotation comparison</h3><span class="tag">FICTIONAL QUOTES · NO SUPPLIER CONTACT</span></div>
+      <div class="table-scroll"><table><thead><tr><th>Supplier</th><th>Landed / unit</th><th>Order qty / cost</th><th>Arrival</th><th>Outcome</th></tr></thead><tbody id="quote-rows"></tbody></table></div>
+      <div class="recommendation"><div class="eyebrow">RULE-BASED RECOMMENDATION · HUMAN APPROVAL REQUIRED</div><p id="recommendation"></p></div>
+      <div class="detail-actions"><a id="inquiry-download" class="download-link" download>Download inquiry draft ↗</a><button id="handoff-research" class="secondary" type="button">Open supplier research ↗</button><a href="/api/inventory/review.json" class="download-link" download>Full review JSON ↗</a></div>
+      <p class="hint">The research link transfers only the product and scenario assumptions. It does not start an AI call. No email or purchase is sent.</p>
+      <details><summary>Purchasing brief for the next workflow stage</summary><pre id="handoff-json"></pre></details>
+    </section>
+    <section class="panel methodology"><h3>Assumptions & boundaries</h3><p id="baseline-description"></p><ul id="limitations"></ul><p>Historical sales are a simple demand proxy. Reservations are treated as separately committed stock; the projected baseline represents additional demand. There is no seasonality, service-level optimisation or forecast-accuracy claim. All lead times are calendar days. Prices exclude recoverable VAT on costs; VAT is a scenario input.</p><p>Quotation ranking checks cost, timing, budget and margin only. Product quality, compliance, supplier capacity and commercial terms still require verification. Budgets apply per product, not to the whole purchasing portfolio.</p></section>
+  </div>
+  <footer>MarketScout · Synthetic procurement lab <span>Inventory system: not connected · Email: not connected · n8n: not connected</span></footer>
+</main>
+</body>
+</html>
