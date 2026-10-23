@@ -2,7 +2,7 @@
 
 An inventory and supplier-research workbench: identify a replenishment need, compare quotations and inspect the evidence and financial assumptions before deciding.
 
-**Status:** inventory review and quotation comparison run locally using deterministic rules and labelled synthetic data. No AI agents, email or n8n connections run in that review. The supplier-research dashboard and offline workflow also run locally. Gemini search and tool-calling adapters are implemented and tested with mocked responses. **A real-key live run has not yet been verified.** The offline demo uses fictional data and scripted tool calls, not a live AI agent.
+**Status:** inventory review and quotation comparison run locally using deterministic rules and labelled synthetic data. No AI agents or email run in that review. A separate n8n orchestration workflow is available below. The supplier-research dashboard and offline workflow also run locally. Gemini search and tool-calling adapters are implemented and tested with mocked responses. **A real-key live run has not yet been verified.** The offline demo uses fictional data and scripted tool calls, not a live AI agent.
 
 ![Inventory review with synthetic stock, incoming-order and quotation priorities](docs/inventory-dashboard.png)
 
@@ -49,11 +49,23 @@ Source definitions and calculation assumptions are documented beside the [synthe
 python3 scripts/generate_demo.py
 ```
 
-## Proposed multi-agent extension
+## n8n orchestration
 
-The intended roles are an inventory investigator, a supplier-research/correspondence agent and a decision adviser, coordinated by n8n. They would call the tested Python tools, pass structured purchasing briefs, request missing information and pause for human approval before email sending or purchasing. **These three cooperating agents and the n8n/email integrations are not implemented.**
+An importable [manual n8n workflow and local Docker setup](n8n/README.md) now connect inventory review → one priority SKU → supplier investigation → a human-review brief and unsent inquiry. The adapter authenticates requests and prevents duplicate work for the same request ID during its lifetime. The default workflow makes no AI calls; live research requires explicit configuration.
 
-The existing local API has same-origin/host restrictions and no remote authentication. Connecting n8n requires a reviewed authenticated integration endpoint or local adapter; the current server must not simply be exposed to the internet. Live supplier research also still needs a real-key validation run.
+Verified end to end in **n8n 2.44.6** using the offline synthetic scenario: all four workflow nodes completed and returned a human-review brief for 310 units of SKU-001. See the [validation summary](docs/n8n-validation.json). This verifies orchestration, not live supplier research.
+
+```mermaid
+flowchart LR
+    A[Manual n8n run] --> B[Review inventory]
+    B --> C{Replenishment needed?}
+    C -->|Yes: one priority SKU| D[Bounded supplier investigation]
+    D --> E[Decision brief and unsent inquiry]
+    C -->|No| F[Stop]
+    E --> G[Human verification]
+```
+
+Research candidates remain separate from confirmed quotation inputs. No emails are sent and no purchases are approved. This is orchestration around deterministic inventory/decision tools and one optional Gemini investigator, **not three cooperating AI agents**. The dashboard's inventory screen does not monitor n8n execution status; use the n8n editor for that.
 
 ## How the agent works
 
@@ -110,7 +122,7 @@ It writes `catalog_entry.csv`, `supplier_rfq.txt` and `research.json`. Without `
 python -m unittest discover -s tests -v
 ```
 
-With the pinned SDK installed, **25 checks** cover VAT, shipping, missing fields, exact-threshold decisions, loss-making offers, break-even rounding, CSV safety, tool budgets, mocked live SDK responses, local API validation and downloads, reproducible data generation, inventory timing/partial receipts, quote constraints and independent expected decisions. The two SDK tests skip when the optional dependency is absent. Tests make no real supplier searches or paid API requests.
+With the pinned SDK installed, **29 checks** cover VAT, shipping, missing fields, exact-threshold decisions, loss-making offers, break-even rounding, CSV safety, tool budgets, mocked live SDK responses, local API validation and downloads, automation authentication, duplicate-run protection, demo/live gates, workflow defaults, reproducible data generation, inventory timing/partial receipts, quote constraints and independent expected decisions. The two SDK tests skip when the optional dependency is absent. Tests make no real supplier searches or paid API requests.
 
 This is a **local, single-user prototype**, bound to `127.0.0.1`, with same-origin checks and a single active investigation. It is not ready for public hosting. Runs are held in memory (up to 20), disappear on restart, and can be downloaded for your records. Evidence is model-reported and may be wrong; prompt-injection instructions are rejected by policy, but this is not a proof of immunity. There are no live procurement/ERP integrations, automated communications or tax-compliance guarantees.
 
@@ -119,10 +131,12 @@ This is a **local, single-user prototype**, bound to `127.0.0.1`, with same-orig
 | `market_scout.py` | Validation, deterministic economics, draft exports and original CLI |
 | `scout_agent.py` | Grounded research adapter, bounded tool executor and agent loop |
 | `dashboard.py` | Local server, validation, in-memory runs and downloads |
+| `automation_api.py` | Authenticated n8n adapter and human-review briefs |
+| `n8n/` | Importable manual workflow, Docker setup and configuration guide |
 | `inventory_review.py` | Deterministic inventory rules, quote comparison and purchasing briefs |
 | `data/demo/` | Six whitelisted fictional input files and their definitions |
 | `scripts/generate_demo.py` | Reproducible dataset generator; no external data or API calls |
 | `static/` | Browser interface; no API keys or model calls |
 | `tests/` | Offline calculation, agent and HTTP checks |
 
-The next validation step is one real-key run against a product with publicly available wholesale, delivery and retail evidence. Inspect every source before presenting it as a verified sourcing result. Before connecting n8n or email, validate a real-key research run and review the integration access controls.
+The next validation step is one real-key run against a product with publicly available wholesale, delivery and retail evidence. Inspect every source before presenting it as a verified sourcing result. Before enabling live mode or adding email, validate a real-key research run and review the integration access controls.

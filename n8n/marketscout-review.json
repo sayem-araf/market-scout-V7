@@ -1,0 +1,159 @@
+{
+  "name": "MarketScout \u2014 inventory to supplier review",
+  "nodes": [
+    {
+      "parameters": {},
+      "id": "start",
+      "name": "Start manual review",
+      "type": "n8n-nodes-base.manualTrigger",
+      "typeVersion": 1,
+      "position": [
+        0,
+        0
+      ]
+    },
+    {
+      "parameters": {
+        "url": "http://adapter:8767/review",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "options": {
+          "timeout": 30000
+        }
+      },
+      "id": "inventory",
+      "name": "Review inventory",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        240,
+        0
+      ],
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "CONFIGURE_LOCALLY",
+          "name": "MarketScout adapter token"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "http://adapter:8767/investigate",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({sku: $json.items.filter(i => i.suggested_quantity > 0)[0]?.sku || \"NO_REPLENISHMENT_NEEDED\", mode: \"demo\", request_id: \"n8n-\" + $execution.id}) }}",
+        "options": {
+          "timeout": 900000
+        }
+      },
+      "id": "research",
+      "name": "Investigate and prepare review brief",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        680,
+        0
+      ],
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "CONFIGURE_LOCALLY",
+          "name": "MarketScout adapter token"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 2
+          },
+          "conditions": [
+            {
+              "id": "needed",
+              "leftValue": "={{ $json.items.some(i => i.suggested_quantity > 0) }}",
+              "rightValue": true,
+              "operator": {
+                "type": "boolean",
+                "operation": "true",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "gate",
+      "name": "Replenishment needed",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        460,
+        0
+      ]
+    },
+    {
+      "parameters": {
+        "content": "## MarketScout \u2022 manual demo\n1. Configure **Header Auth** on both HTTP nodes: Authorization = Bearer YOUR_TOKEN.\n2. Run manually; one priority SKU per execution.\n3. Inspect the final node output: research evidence, existing quote review, inquiry draft and review checks.\n\n**Demo:** no LLM calls, emails or purchases. Inventory is synthetic.\nLive: explicitly change mode to live AND enable it on the adapter. Real research remains unverified and is not inserted into the quotation table.\n\nA false branch means no replenishment needed. Do not add automatic retries: same request ID deduplicates only until adapter restart.",
+        "height": 360,
+        "width": 850
+      },
+      "id": "notes",
+      "name": "Setup and boundaries",
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        0,
+        220
+      ]
+    }
+  ],
+  "connections": {
+    "Start manual review": {
+      "main": [
+        [
+          {
+            "node": "Review inventory",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Review inventory": {
+      "main": [
+        [
+          {
+            "node": "Replenishment needed",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Replenishment needed": {
+      "main": [
+        [
+          {
+            "node": "Investigate and prepare review brief",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1",
+    "executionTimeout": 960
+  },
+  "pinData": {},
+  "tags": []
+}

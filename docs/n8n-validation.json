@@ -1,0 +1,16 @@
+{
+  "n8n_version": "2.44.6",
+  "execution_status": "success",
+  "executed_nodes": [
+    "Start manual review",
+    "Review inventory",
+    "Replenishment needed",
+    "Investigate and prepare review brief"
+  ],
+  "sku": "SKU-001",
+  "supplier_mode": "offline-demo",
+  "suggested_quantity": 310,
+  "decision": "HUMAN_REVIEW_REQUIRED",
+  "email_sent": false,
+  "purchase_approved": false
+}
